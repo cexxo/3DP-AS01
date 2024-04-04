@@ -1,0 +1,3 @@
+/home/cexxo/3DP_lab_1/build/CMakeFiles/sgm.dir
+/home/cexxo/3DP_lab_1/build/CMakeFiles/edit_cache.dir
+/home/cexxo/3DP_lab_1/build/CMakeFiles/rebuild_cache.dir
