@@ -173,40 +173,43 @@ namespace sgm {
         // if the processed pixel is the first:
         if (cur_y == pw_.north || cur_y == pw_.south || cur_x == pw_.east || cur_x == pw_.west) {
             //Please fill me!
-            for (unsigned int d = 0; d <
-                                     disparity_range_; d++) {                                                                  //TO BE CHECKED IF IT IS A CORRECT ASSUMPTION
+            for (unsigned int d = 0; d <disparity_range_; d++) {                                                                  //TO BE CHECKED IF IT IS A CORRECT ASSUMPTION
                 path_cost_[cur_path][cur_y][cur_x][d] = cost_[cur_y][cur_x][d];
             }
         } else {
             //Please fill me!
-            for (unsigned int d = 0; d < disparity_range_; d++) {
-                path_cost_[cur_path][cur_y][cur_x][d] = cost_[cur_y][cur_x][d];
-                prev_cost = cost_[cur_y - direction_y][cur_x - direction_x][d];
+            best_prev_cost = path_cost_[cur_path][cur_y-direction_y][cur_x-direction_x][0];
+            /*for (unsigned int d = 0; d < disparity_range_; d++) {
+                if(best_prev_cost > path_cost_[cur_path][cur_y-direction_y][cur_x-direction_x][d])
+                    best_prev_cost=path_cost_[cur_path][cur_y-direction_y][cur_x-direction_x][d];
+            }*/
+            for(int d = 0; d < disparity_range_;d++){
+                prev_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d];
+                no_penalty_cost = prev_cost;
                 if (d == 0) {
-                    small_penalty_cost &= cost_[cur_y - direction_y][cur_x - direction_x][d + 1] + p1_;
-                } else if (d == disparity_range_ - 1)
-                    small_penalty_cost &= cost_[cur_y - direction_y][cur_x - direction_x][d - 1] + p1_;
-                else {
-                    if (cost_[cur_y - direction_y][cur_x - direction_x][d + 1] >
-                        cost_[cur_y - direction_y][cur_x - direction_x][d - 1])
-                        small_penalty_cost &= cost_[cur_y - direction_y][cur_x - direction_x][d - 1] + p1_;
+                    small_penalty_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d + 1] + p1_;
+                } else if (d == disparity_range_ - 1) {
+                    small_penalty_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d - 1] + p1_;
+                }else {
+                    if (path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d + 1] >=
+                        path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d - 1])
+                        small_penalty_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d - 1] + p1_;
                     else
-                        small_penalty_cost &= cost_[cur_y - direction_y][cur_x - direction_x][d + 1] + p1_;
+                        small_penalty_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d + 1] + p1_;
                 }
-                best_prev_cost &= 10000;
+                best_prev_cost = 10000;
                 for (unsigned int dd = 0; dd < disparity_range_; dd++) {
                     if (int(dd - d) >= 2 || int(dd - d) <= -2) {
-                        if (best_prev_cost > cost_[cur_y - direction_y][cur_x - direction_x][dd])
-                            best_prev_cost = cost_[cur_y - direction_y][cur_x - direction_x][dd];
+                        if (best_prev_cost > path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][dd])
+                            best_prev_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][dd];
                     }
                 }
                 big_penalty_cost = best_prev_cost + p2_;
-                unsigned long temp = min(prev_cost, small_penalty_cost);
-                path_cost_[cur_path][cur_y][cur_x][d] = cost_[cur_y][cur_y][d] + min(temp, big_penalty_cost);
+                unsigned long temp = min(no_penalty_cost, small_penalty_cost);
+                path_cost_[cur_path][cur_y][cur_x][d] = cost_[cur_y][cur_x][d] + min(temp, big_penalty_cost);
             }
+
         }
-
-
         /////////////////////////////////////////////////////////////////////////////////////////
     }
 
@@ -225,12 +228,28 @@ namespace sgm {
             int dir_y = paths_[cur_path].direction_y;
 
             int start_x, start_y, end_x, end_y, step_x, step_y;
-            start_x = 1;
-            start_y = 1;
-            end_x = width_;
-            end_y = height_;
-            step_x = 1;
-            step_y = 1;
+            if (dir_x==-1)
+            {
+                start_x=pw_.east;
+                end_x=pw_.west;
+                step_x=-1;
+            }   else
+            {
+                start_x=pw_.west;
+                end_x=pw_.east;
+                step_x=1;
+            }
+            if (dir_y==-1)
+            {
+                start_y=pw_.south;
+                end_y=pw_.north;
+                step_y=-1;
+            }   else
+            {
+                start_y=pw_.north;
+                end_y=pw_.south;
+                step_y=1;
+            }
             for (int y = start_y; y != end_y; y += step_y) {
                 for (int x = start_x; x != end_x; x += step_x) {
                     compute_path_cost(dir_y, dir_x, y, x, cur_path);
@@ -294,8 +313,7 @@ namespace sgm {
                     // to estimate the unknown scale factor.
                     /////////////////////////////////////////////////////////////////////////////////////////
                     d_mono.push_back(float(mono_.at<uchar>(row, col)));
-                    d_sgm.push_back(float(mono_.at<uchar>(row, col)));
-                    //d_sgm.push_back(smallest_disparity);//TO BE CHECKED
+                    d_sgm.push_back(smallest_disparity);
 
 
 
@@ -325,8 +343,13 @@ namespace sgm {
         x = x2 * b;
         h = x.at<float>(0);
         k = x.at<float>(1);
-        disp_ = (mono_ * h) + Scalar(k);
-
+        for (int row = 0; row < height_; ++row) {
+            for (int col = 0; col < width_; ++col) {
+                if (inv_confidence_[row][col] <= 0 || inv_confidence_[row][col] >= conf_thresh_) {
+                    disp_.at<uchar>(row,col) = (mono_.at<uchar>(row,col)* h +k)* 255 / disparity_range_;
+                }
+            }
+        }
 
 
 
