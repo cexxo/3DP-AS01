@@ -179,10 +179,6 @@ namespace sgm {
         } else {
             //Please fill me!
             best_prev_cost = path_cost_[cur_path][cur_y-direction_y][cur_x-direction_x][0];
-            /*for (unsigned int d = 0; d < disparity_range_; d++) {
-                if(best_prev_cost > path_cost_[cur_path][cur_y-direction_y][cur_x-direction_x][d])
-                    best_prev_cost=path_cost_[cur_path][cur_y-direction_y][cur_x-direction_x][d];
-            }*/
             for(int d = 0; d < disparity_range_;d++){
                 prev_cost = path_cost_[cur_path][cur_y - direction_y][cur_x - direction_x][d];
                 no_penalty_cost = prev_cost;
@@ -228,27 +224,32 @@ namespace sgm {
             int dir_y = paths_[cur_path].direction_y;
 
             int start_x, start_y, end_x, end_y, step_x, step_y;
-            if (dir_x==-1)
+            switch (dir_x)
             {
+            case -1:
                 start_x=pw_.east;
                 end_x=pw_.west;
                 step_x=-1;
-            }   else
-            {
+                break;
+            default:
                 start_x=pw_.west;
                 end_x=pw_.east;
                 step_x=1;
+                break;
             }
-            if (dir_y==-1)
+            switch (dir_y)
             {
+            case -1:
                 start_y=pw_.south;
                 end_y=pw_.north;
                 step_y=-1;
-            }   else
-            {
+              break;
+            
+            default:
                 start_y=pw_.north;
                 end_y=pw_.south;
                 step_y=1;
+              break;
             }
             for (int y = start_y; y != end_y; y += step_y) {
                 for (int x = start_x; x != end_x; x += step_x) {
@@ -334,15 +335,16 @@ namespace sgm {
         // disparities.
         /////////////////////////////////////////////////////////////////////////////////////////
         float h, k;
-        Mat x, x1, x2, A, At, b(d_sgm);
-        Mat one = Mat_<float>::ones(1, d_mono.size());
-        cv::vconcat(d_mono, one, At);
-        A = At.t();
-        x1 = At * A;
-        x2 = x1.inv() * At;
-        x = x2 * b;
-        h = x.at<float>(0);
-        k = x.at<float>(1);
+        Mat A, transpose_A, b(d_sgm);
+        const Mat vector_of_ones = Mat_<float>::ones(1, d_mono.size());
+        cv::vconcat(d_mono, vector_of_ones, transpose_A);
+        A = transpose_A.t();
+        Mat temp_x, temp_x_2, x;
+        temp_x = transpose_A * A;
+        temp_x_2 = temp_x.inv() * transpose_A;
+        x = temp_x_2 * b;
+        h = x.at<float>(0,0);
+        k = x.at<float>(0,1);
         for (int row = 0; row < height_; ++row) {
             for (int col = 0; col < width_; ++col) {
                 if (inv_confidence_[row][col] <= 0 || inv_confidence_[row][col] >= conf_thresh_) {
@@ -383,4 +385,3 @@ namespace sgm {
 
 
 }
-
